@@ -1,9 +1,10 @@
 #include "include/logger.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <time.h>
 
-void log_message(log_level_t level, const char *name, const char *str) {
+void log_message(log_level_t level, const char *name, const char *fmt, ...) {
     time_t raw_time = time(NULL);
     struct tm *time_info = localtime(&raw_time);
     char time_str[9];
@@ -16,11 +17,12 @@ void log_message(log_level_t level, const char *name, const char *str) {
         [LOG_ERROR] = "\033[31m",
     };
 
-    printf(
-        "%s%s [%s]: %s%s\n",
-        level_colors[level],
-        time_str,
-        name,
-        str,
-        "\033[0m");
+    printf("%s%s [%s]: ", level_colors[level], time_str, name);
+
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+
+    printf("\033[0m\n");
 }

@@ -60,7 +60,12 @@ void *proxy_worker(void *arg) {
             continue;
         }
 
-        printf("\nhost: %s, port: %d\n\n", dest_host, dest_port);
+        // Connection
+        if (socks5_connect(client_fd, dest_host, dest_port) < 0) {
+            log_message(LOG_ERROR, PROXY_WORKER_NAME, "Connection failed");
+            close(client_fd);
+            continue;
+        }
 
         close(client_fd);
     }

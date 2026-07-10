@@ -155,3 +155,64 @@ int socks5_read_port(int client_fd, int *dest_port) {
     *dest_port = (port_bytes[0] << 8) | port_bytes[1];
     return 0;
 }
+
+// ======================================================================
+// SOCKS5 Connect to remote server
+// ======================================================================
+int socks5_connect(int client_fd, char *dest_host, int dest_port) {
+    struct addrinfo hints, *res;
+    memset(&hints, 0, sizeof(hints));
+
+    hints.ai_family = AF_UNSPEC;  // Allow both IPv4 and IPv6
+    hints.ai_socktype = SOCK_STREAM;
+
+    char port_str[8];
+    snprintf(port_str, sizeof(port_str), "%d", dest_port);
+
+    if (getaddrinfo(dest_host, port_str, &hints, &res) != 0) {
+        log_message(
+            LOG_ERROR, SOCKS5_NAME, "Getaddrinfo failed for %s", dest_host);
+        // Send SOCKS5 error reply (host unreachable)
+        unsigned char err_reply[] = {5, 4, 0, 1, 0, 0, 0, 0, 0, 0};
+        send(client_fd, err_reply, sizeof(err_reply), 0);
+        close(client_fd);
+        return -1;
+    }
+
+    int remote_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+
+    if (remote_fd < 0) {
+        freeaddrinfo(res);
+        // Send SOCKS5 error reply (general failure)
+        unsigned char err_reply[] = {5, 1, 0, 1, 0, 0, 0, 0, 0, 0};
+        send(client_fd, err_reply, sizeof(err_reply), 0);
+        close(client_fd);
+        return -1;
+    }
+
+    if (connect(remote_fd, res->ai_addr, res->ai_addrlen) < 0) {
+        freeaddrinfo(res);
+        close(remote_fd);
+        // Send SOCKS5 error reply (connection refused)
+        unsigned char err_reply[] = {5, 5, 0, 1, 0, 0, 0, 0, 0, 0};
+        send(client_fd, err_reply, sizeof(err_reply), 0);
+        close(client_fd);
+        return -1;
+    }
+
+    // Free address list
+    freeaddrinfo(res);
+
+    // Send success reply
+    unsigned char success_reply[] = {5, 0, 0, 1, 0, 0, 0, 0, 0, 0};
+    send(client_fd, success_reply, sizeof(success_reply), 0);
+
+    log_message(
+        LOG_INFO,
+        SOCKS5_NAME,
+        "Tunnel established with %s:%d",
+        dest_host,
+        dest_port);
+
+    return remote_fd;
+}

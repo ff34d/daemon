@@ -51,8 +51,8 @@ int initialize_socket_server(proxy_config_t *config) {
         return -1;
     }
 
-    log_message(LOG_INFO, SOCKET_SERVER_NAME, "Listening socket");
-    printf("Listening socket on 127.0.0.1:%d...\n", port);
+    log_message(
+        LOG_INFO, SOCKET_SERVER_NAME, "Listening socket on 127.0.0.1:%d", port);
 
     return server_fd;
 }

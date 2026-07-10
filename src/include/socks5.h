@@ -15,5 +15,6 @@
 int socks5_handshake(int client_fd);
 int socks5_read_address(int client_fd, int size, int atyp, char *dest_host);
 int socks5_read_port(int client_fd, int *dest_port);
+int socks5_connect(int client_fd, char *dest_host, int dest_port);
 
 #endif
