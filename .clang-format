@@ -1,0 +1,9 @@
+BasedOnStyle: Google
+ColumnLimit: 80
+IndentWidth: 4
+PointerAlignment: Right
+
+BinPackArguments: false
+AlignAfterOpenBracket: AlwaysBreak
+
+SortIncludes: true
