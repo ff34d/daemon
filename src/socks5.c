@@ -31,7 +31,7 @@ int socks5_handshake(int client_fd) {
     int nmethods = buffer[1];
 
     n = recv(client_fd, buffer, nmethods, 0);
-    if (n != nmethods) {
+    if (n != nmethods || nmethods > 255) {
         log_message(LOG_ERROR, SOCKS5_NAME, "Failed to read methods");
         return -1;
     }
@@ -191,7 +191,6 @@ int socks5_connect(int client_fd, char *dest_host, int dest_port) {
 
     if (connect(remote_fd, res->ai_addr, res->ai_addrlen) < 0) {
         freeaddrinfo(res);
-        close(remote_fd);
         // Send SOCKS5 error reply (connection refused)
         unsigned char err_reply[] = {5, 5, 0, 1, 0, 0, 0, 0, 0, 0};
         send(client_fd, err_reply, sizeof(err_reply), 0);
