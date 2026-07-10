@@ -5,7 +5,7 @@
 
 ---
 
-## ⚠️ DISCLAIMER & IMPORTANT NOTICE
+### ⚠️ DISCLAIMER & IMPORTANT NOTICE
 
 **THIS SOFTWARE IS PROVIDED FOR EDUCATIONAL AND RESEARCH PURPOSES ONLY.**
 
@@ -21,13 +21,13 @@ By using this software, you acknowledge and agree that:
 
 ---
 
-## 📖 About
+### 📖 About
 
 **Daemon ONI** is a lightweight, local proxy written in C that sits between your applications and the network. It captures, inspects, modifies, and tunnels packets in real time — think of it as a programmable on‑the‑fly traffic manipulator for learning how network protocols work under the hood.
 
 ---
 
-## ✨ Features
+### ✨ Features
 
 - 🔍 **Packet capture** – intercept traffic at the local proxy level
 - ✏️ **On‑the‑fly editing** – modify packet payloads and headers in real time
@@ -37,19 +37,19 @@ By using this software, you acknowledge and agree that:
 
 ---
 
-## 🚧 Status
+### 🚧 Status
 
 **This project is currently under active development.** Features may be incomplete, and breaking changes can occur at any time.
 
 ---
 
-## 📜 License
+### 📜 License
 
 This project is licensed under the **MIT License** – see the [LICENSE](https://github.com/ff34d/daemon/blob/main/LICENSE) file for details.
 
 ---
 
-# 🙏 Final Note
+### 🙏 Final Note
 
 This tool was built to learn, not to harm. Please use it responsibly and ethically.
 
