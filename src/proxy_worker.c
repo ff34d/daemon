@@ -18,6 +18,11 @@
 void *proxy_worker(void *arg) {
     proxy_config_t *config = (proxy_config_t *)arg;
 
+    int buffer_size = DEFAULT_BUFFER_SIZE;
+    if (config && config->buffer_size > 0) {
+        buffer_size = config->buffer_size;
+    }
+
     int server_fd = initialize_socket_server(config);
     if (server_fd < 0) return NULL;
 
@@ -60,13 +65,25 @@ void *proxy_worker(void *arg) {
             continue;
         }
 
+        int remote_fd = socks5_connect(client_fd, dest_host, dest_port);
+
         // Connection
-        if (socks5_connect(client_fd, dest_host, dest_port) < 0) {
+        if (remote_fd < 0) {
             log_message(LOG_ERROR, PROXY_WORKER_NAME, "Connection failed");
+            close(remote_fd);
             close(client_fd);
             continue;
         }
 
+        // Tunneling
+        if (socks5_bidirectional_relay(client_fd, remote_fd, buffer_size) < 0) {
+            log_message(LOG_ERROR, PROXY_WORKER_NAME, "Tunneling failed");
+            close(remote_fd);
+            close(client_fd);
+            continue;
+        }
+
+        close(remote_fd);
         close(client_fd);
     }
 

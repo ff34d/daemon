@@ -4,6 +4,7 @@
 #include <netdb.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -175,7 +176,6 @@ int socks5_connect(int client_fd, char *dest_host, int dest_port) {
         // Send SOCKS5 error reply (host unreachable)
         unsigned char err_reply[] = {5, 4, 0, 1, 0, 0, 0, 0, 0, 0};
         send(client_fd, err_reply, sizeof(err_reply), 0);
-        close(client_fd);
         return -1;
     }
 
@@ -186,7 +186,6 @@ int socks5_connect(int client_fd, char *dest_host, int dest_port) {
         // Send SOCKS5 error reply (general failure)
         unsigned char err_reply[] = {5, 1, 0, 1, 0, 0, 0, 0, 0, 0};
         send(client_fd, err_reply, sizeof(err_reply), 0);
-        close(client_fd);
         return -1;
     }
 
@@ -196,7 +195,6 @@ int socks5_connect(int client_fd, char *dest_host, int dest_port) {
         // Send SOCKS5 error reply (connection refused)
         unsigned char err_reply[] = {5, 5, 0, 1, 0, 0, 0, 0, 0, 0};
         send(client_fd, err_reply, sizeof(err_reply), 0);
-        close(client_fd);
         return -1;
     }
 
@@ -215,4 +213,68 @@ int socks5_connect(int client_fd, char *dest_host, int dest_port) {
         dest_port);
 
     return remote_fd;
+}
+
+// ======================================================================
+// SOCKS5 Create bidirectional relay
+// ======================================================================
+int socks5_bidirectional_relay(int client_fd, int remote_fd, int buffer_size) {
+    char *buffer_ptr = malloc(buffer_size);
+
+    if (!buffer_ptr) {
+        log_message(LOG_ERROR, SOCKS5_NAME, "Malloc failed");
+        return -1;
+    }
+
+    fd_set fds;
+    int maxfd = (client_fd > remote_fd) ? client_fd : remote_fd;
+    int running = 1;
+
+    while (running) {
+        FD_ZERO(&fds);
+        FD_SET(client_fd, &fds);
+        FD_SET(remote_fd, &fds);
+
+        // Blocking until data appears on one of the socket
+        if (select(maxfd + 1, &fds, NULL, NULL, NULL) < 0) break;
+
+        // Data from client socket is available
+        if (FD_ISSET(client_fd, &fds)) {
+            ssize_t n = recv(client_fd, buffer_ptr, buffer_size, 0);
+
+            if (n <= 0) {
+                running = 0;
+                break;
+            }
+
+            // TODO: O.F.C
+
+            if (send(remote_fd, buffer_ptr, n, 0) < 0) {
+                running = 0;
+                break;
+            }
+        }
+
+        // Data from remote socket is available
+        if (FD_ISSET(remote_fd, &fds)) {
+            ssize_t n = recv(remote_fd, buffer_ptr, buffer_size, 0);
+
+            if (n <= 0) {
+                running = 0;
+                break;
+            }
+
+            // TODO: D O.F.C
+
+            if (send(client_fd, buffer_ptr, n, 0) < 0) {
+                running = 0;
+                break;
+            }
+        }
+    }
+
+    free(buffer_ptr);
+    log_message(LOG_INFO, SOCKS5_NAME, "Connection closed");
+
+    return 0;
 }
