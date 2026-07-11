@@ -1,9 +1,44 @@
-BasedOnStyle: Google
-ColumnLimit: 80
+BasedOnStyle: LLVM
+Language: Cpp
+
 IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+IndentPPDirectives: None
+
+ColumnLimit: 80
+BreakBeforeBraces: Attach
+
 PointerAlignment: Right
 
-BinPackArguments: false
-AlignAfterOpenBracket: AlwaysBreak
+# Выравнивание в колонки
+AlignConsecutiveDeclarations: false
+AlignConsecutiveAssignments: false
+AlignConsecutiveMacros: true
 
+# Переносы аргументов функций (каждый на своей строке)
+AlignAfterOpenBracket: BlockIndent
+BinPackArguments: false
+BinPackParameters: false
+
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+InsertBraces: false
+
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+
+# Выравнивание операторов (+, -, &&) при переносе
+AlignOperands: Align
+
+# Пробелы вокруг скобок
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Настройка пробелов внутри массивов { 1, 2, 3 } для новых версий clang-format
+Cpp11BracedListStyle: false
+SpacesInAngles: false
+
+# Чистка кода
 SortIncludes: true
+MaxEmptyLinesToKeep: 1

@@ -20,49 +20,49 @@ int socks5_handshake(int client_fd) {
     unsigned char buffer[258];
     ssize_t n;
 
-    // Read greeting
+    // ========== Read greeting ==========
     n = recv(client_fd, buffer, 2, 0);
+
     if (n < 2 || buffer[0] != SOCKS5_VERSION) {
-        log_message(LOG_ERROR, SOCKS5_NAME, "Bad SOCKS5 greeting");
+        log_message(LOG_ERROR, SOCKS5_NAME, "Failed greeting");
         return -1;
     }
 
-    // Check methods
+    // ========== Check methods ==========
     int nmethods = buffer[1];
-
     n = recv(client_fd, buffer, nmethods, 0);
+
     if (n != nmethods || nmethods > 255) {
         log_message(LOG_ERROR, SOCKS5_NAME, "Failed to read methods");
         return -1;
     }
 
-    // Check for no auth required
+    // ========== Check no auth key ==========
     int no_auth = 0;
 
     for (int i = 0; i < nmethods; i++) {
-        if (buffer[i] == SOCKS5_METHOD_NO_AUTH) {  // 0x00 - no auth key
+        if (buffer[i] == SOCKS5_METHOD_NO_AUTH) {
             no_auth = 1;
             break;
         }
     }
 
     if (!no_auth) {
-        // 5 - socket version, 0xFF - no acceptable methods
-        unsigned char reply[] = {5, 0xFF};
+        unsigned char reply[] = { SOCKS5_VERSION, SOCKS5_METHOD_NO_ACCEPTABLE };
         send(client_fd, reply, sizeof(reply), 0);
         return -1;
     }
 
-    // Send method choice: 0x00 - no auth
-    unsigned char method_choice[] = {5, SOCKS5_METHOD_NO_AUTH};
+    // ========== Send method choice (no auth) ==========
+    unsigned char method_choice[] = { SOCKS5_VERSION, SOCKS5_METHOD_NO_AUTH };
     send(client_fd, method_choice, sizeof(method_choice), 0);
 
-    // Validate request
+    // ========== Validate request params ==========
     n = recv(client_fd, buffer, 4, 0);
 
-    // buffer[5] - Socket version, buffer[1] - Command (1 = Connect)
-    if (n < 4 || buffer[0] != 5 || buffer[1] != SOCKS5_CMD_CONNECT) {
-        log_message(LOG_ERROR, SOCKS5_NAME, "Bad SOCKS5 request");
+    if (n < 4 || buffer[0] != SOCKS5_VERSION ||
+        buffer[1] != SOCKS5_CMD_CONNECT) {
+        log_message(LOG_ERROR, SOCKS5_NAME, "Failed validation params");
         return -1;
     }
 
@@ -79,62 +79,64 @@ int socks5_read_address(int client_fd, int size, int atyp, char *dest_host) {
 
     // Read address
     switch (atyp) {
-        case SOCKS5_ATYP_IPV4: {  // IPv4
-            n = recv(client_fd, buffer, 4, 0);
-            if (n < 4) {
-                read_failed = -1;
-                break;
-            }
+    case SOCKS5_ATYP_IPV4: { // IPv4
+        n = recv(client_fd, buffer, 4, 0);
 
-            snprintf(
-                dest_host,
-                size,
-                "%d.%d.%d.%d",
-                buffer[0],
-                buffer[1],
-                buffer[2],
-                buffer[3]);
-
-            break;
-        }
-        case SOCKS5_ATYP_DOMAIN: {  // Domain name
-            unsigned char len;
-
-            n = recv(client_fd, &len, 1, 0);
-            if (n < 1) {
-                read_failed = -1;
-                break;
-            }
-
-            n = recv(client_fd, dest_host, len, 0);
-            if (n < len) {
-                read_failed = -1;
-                break;
-            }
-
-            dest_host[len] = '\0';
-            break;
-        }
-        case SOCKS5_ATYP_IPV6: {  // IPv6
-            unsigned char ipv6[16];
-
-            n = recv(client_fd, ipv6, 16, 0);
-
-            if (n < 16) {
-                read_failed = -1;
-                break;
-            }
-
-            struct in6_addr v6addr;
-            memcpy(&v6addr, ipv6, 16);
-            inet_ntop(AF_INET6, &v6addr, dest_host, size);
-            break;
-        }
-        default: {
-            log_message(LOG_ERROR, SOCKS5_NAME, "Unsupported address type");
+        if (n < 4) {
             read_failed = -1;
             break;
         }
+
+        snprintf(
+            dest_host,
+            size,
+            "%d.%d.%d.%d",
+            buffer[0],
+            buffer[1],
+            buffer[2],
+            buffer[3]
+        );
+
+        break;
+    }
+    case SOCKS5_ATYP_DOMAIN: { // Domain name
+        unsigned char len;
+
+        n = recv(client_fd, &len, 1, 0);
+        if (n < 1) {
+            read_failed = -1;
+            break;
+        }
+
+        n = recv(client_fd, dest_host, len, 0);
+        if (n < len) {
+            read_failed = -1;
+            break;
+        }
+
+        dest_host[len] = '\0';
+        break;
+    }
+    case SOCKS5_ATYP_IPV6: { // IPv6
+        unsigned char ipv6[16];
+
+        n = recv(client_fd, ipv6, 16, 0);
+
+        if (n < 16) {
+            read_failed = -1;
+            break;
+        }
+
+        struct in6_addr v6addr;
+        memcpy(&v6addr, ipv6, 16);
+        inet_ntop(AF_INET6, &v6addr, dest_host, size);
+        break;
+    }
+    default: {
+        log_message(LOG_ERROR, SOCKS5_NAME, "Unsupported address type");
+        read_failed = -1;
+        break;
+    }
     }
 
     return read_failed;
@@ -149,7 +151,7 @@ int socks5_read_port(int client_fd, int *dest_port) {
 
     n = recv(client_fd, port_bytes, 2, 0);
     if (n < 2) {
-        log_message(LOG_ERROR, SOCKS5_NAME, "Read port failed");
+        log_message(LOG_ERROR, SOCKS5_NAME, "Failed to read port");
         return -1;
     }
 
@@ -164,7 +166,7 @@ int socks5_connect(int client_fd, char *dest_host, int dest_port) {
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
 
-    hints.ai_family = AF_UNSPEC;  // Allow both IPv4 and IPv6
+    hints.ai_family = AF_UNSPEC; // Allow both IPv4 and IPv6
     hints.ai_socktype = SOCK_STREAM;
 
     char port_str[8];
@@ -172,10 +174,17 @@ int socks5_connect(int client_fd, char *dest_host, int dest_port) {
 
     if (getaddrinfo(dest_host, port_str, &hints, &res) != 0) {
         log_message(
-            LOG_ERROR, SOCKS5_NAME, "Getaddrinfo failed for %s", dest_host);
+            LOG_ERROR,
+            SOCKS5_NAME,
+            "Getaddrinfo failed for %s",
+            dest_host
+        );
         // Send SOCKS5 error reply (host unreachable)
-        unsigned char err_reply[] = {5, 4, 0, 1, 0, 0, 0, 0, 0, 0};
+        unsigned char err_reply[] = {
+            SOCKS5_VERSION, 4, 0, 1, 0, 0, 0, 0, 0, 0
+        };
         send(client_fd, err_reply, sizeof(err_reply), 0);
+
         return -1;
     }
 
@@ -184,7 +193,9 @@ int socks5_connect(int client_fd, char *dest_host, int dest_port) {
     if (remote_fd < 0) {
         freeaddrinfo(res);
         // Send SOCKS5 error reply (general failure)
-        unsigned char err_reply[] = {5, 1, 0, 1, 0, 0, 0, 0, 0, 0};
+        unsigned char err_reply[] = {
+            SOCKS5_VERSION, 1, 0, 1, 0, 0, 0, 0, 0, 0
+        };
         send(client_fd, err_reply, sizeof(err_reply), 0);
         return -1;
     }
@@ -192,7 +203,9 @@ int socks5_connect(int client_fd, char *dest_host, int dest_port) {
     if (connect(remote_fd, res->ai_addr, res->ai_addrlen) < 0) {
         freeaddrinfo(res);
         // Send SOCKS5 error reply (connection refused)
-        unsigned char err_reply[] = {5, 5, 0, 1, 0, 0, 0, 0, 0, 0};
+        unsigned char err_reply[] = {
+            SOCKS5_VERSION, 5, 0, 1, 0, 0, 0, 0, 0, 0
+        };
         send(client_fd, err_reply, sizeof(err_reply), 0);
         return -1;
     }
@@ -201,7 +214,9 @@ int socks5_connect(int client_fd, char *dest_host, int dest_port) {
     freeaddrinfo(res);
 
     // Send success reply
-    unsigned char success_reply[] = {5, 0, 0, 1, 0, 0, 0, 0, 0, 0};
+    unsigned char success_reply[] = {
+        SOCKS5_VERSION, 0, 0, 1, 0, 0, 0, 0, 0, 0
+    };
     send(client_fd, success_reply, sizeof(success_reply), 0);
 
     log_message(
@@ -209,7 +224,8 @@ int socks5_connect(int client_fd, char *dest_host, int dest_port) {
         SOCKS5_NAME,
         "Tunnel established with %s:%d",
         dest_host,
-        dest_port);
+        dest_port
+    );
 
     return remote_fd;
 }
