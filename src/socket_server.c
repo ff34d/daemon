@@ -10,11 +10,7 @@
 // ============================================================
 // Initialization for socket, binding and listening.
 // ============================================================
-int initialize_socket_server(proxy_config_t *config) {
-    int port = DEFAULT_PORT;
-
-    if (config && config->port != 0) port = config->port;
-
+int initialize_socket_server(int port) {
     // Create socket
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
@@ -52,7 +48,11 @@ int initialize_socket_server(proxy_config_t *config) {
     }
 
     log_message(
-        LOG_INFO, SOCKET_SERVER_NAME, "Listening socket on 127.0.0.1:%d", port);
+        LOG_INFO,
+        SOCKET_SERVER_NAME,
+        "Listening socket on 127.0.0.1:%d",
+        port
+    );
 
     return server_fd;
 }
