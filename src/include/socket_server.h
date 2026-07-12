@@ -10,6 +10,6 @@ typedef struct {
     int buffer_size;
 } proxy_config_t;
 
-int initialize_socket_server(proxy_config_t *config);
+int initialize_socket_server(int port);
 
 #endif

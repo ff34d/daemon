@@ -19,14 +19,15 @@ void *proxy_worker(void *arg) {
     proxy_config_t *config = (proxy_config_t *)arg;
 
     int buffer_size = DEFAULT_BUFFER_SIZE;
-    if (config && config->buffer_size > 0) {
-        buffer_size = config->buffer_size;
-    }
+    int server_port = DEFAULT_PORT;
 
-    int server_fd = initialize_socket_server(config);
+    if (config && config->buffer_size > 0) buffer_size = config->buffer_size;
+    if (config && config->port > 0) server_port = config->port;
+
+    int server_fd = initialize_socket_server(server_port);
     if (server_fd < 0) return NULL;
 
-    // Main accept loop
+    // ========== Accept loop ==========
     while (1) {
         // Accepting client
         int client_fd = accept(server_fd, NULL, NULL);
@@ -37,22 +38,33 @@ void *proxy_worker(void *arg) {
 
         log_message(LOG_INFO, PROXY_WORKER_NAME, "New client connected");
 
-        int buffer_atype = socks5_handshake(client_fd);
-        if (buffer_atype < 0) {
+        // Greeting
+        int buffer_atyp = socks5_handshake(client_fd);
+        if (buffer_atyp < 0) {
             log_message(
-                LOG_ERROR, PROXY_WORKER_NAME, "Socket handshake failed");
+                LOG_ERROR,
+                PROXY_WORKER_NAME,
+                "Socket handshake failed"
+            );
             close(client_fd);
             continue;
         }
 
-        char dest_host[256] = {0};
+        char dest_host[256] = { 0 };
         int dest_port = 0;
 
         // Read address
         if (socks5_read_address(
-                client_fd, sizeof(dest_host), buffer_atype, dest_host) < 0) {
+                client_fd,
+                sizeof(dest_host),
+                buffer_atyp,
+                dest_host
+            ) < 0) {
             log_message(
-                LOG_ERROR, PROXY_WORKER_NAME, "Request address reading failed");
+                LOG_ERROR,
+                PROXY_WORKER_NAME,
+                "Request address reading failed"
+            );
             close(client_fd);
             continue;
         }
@@ -60,14 +72,16 @@ void *proxy_worker(void *arg) {
         // Read port
         if (socks5_read_port(client_fd, &dest_port) < 0) {
             log_message(
-                LOG_ERROR, PROXY_WORKER_NAME, "Request port reading failed");
+                LOG_ERROR,
+                PROXY_WORKER_NAME,
+                "Request port reading failed"
+            );
             close(client_fd);
             continue;
         }
 
-        int remote_fd = socks5_connect(client_fd, dest_host, dest_port);
-
         // Connection
+        int remote_fd = socks5_connect(client_fd, dest_host, dest_port);
         if (remote_fd < 0) {
             log_message(LOG_ERROR, PROXY_WORKER_NAME, "Connection failed");
             close(remote_fd);
